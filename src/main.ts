@@ -19,6 +19,7 @@ export default class JournalTranscriberPlugin extends Plugin {
 		this.addCommand({
 			id: "insert-transcribed-note",
 			name: "Insert transcribed note",
+			icon: "scan-text",
 			editorCallback: (editor: Editor) => {
 				void this.runTranscription(editor);
 			},
