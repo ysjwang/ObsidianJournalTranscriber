@@ -1,4 +1,4 @@
-import { Editor, MarkdownView, Notice, Plugin } from "obsidian";
+import { Editor, MarkdownView, Notice, Plugin, TFile } from "obsidian";
 import {
 	DEFAULT_SETTINGS,
 	TranscriberSettings,
@@ -6,7 +6,11 @@ import {
 } from "./settings";
 import { normalizeToJpeg, pickImage } from "./image";
 import { getProvider } from "./providers";
-import { insertTranscription, saveImageToVault } from "./insert";
+import {
+	insertTranscription,
+	insertTranscriptionAfterLine,
+	saveImageToVault,
+} from "./insert";
 
 export default class JournalTranscriberPlugin extends Plugin {
 	settings: TranscriberSettings;
@@ -32,6 +36,15 @@ export default class JournalTranscriberPlugin extends Plugin {
 				return;
 			}
 			void this.runTranscription(view.editor);
+		});
+
+		this.addCommand({
+			id: "transcribe-image-under-cursor",
+			name: "Transcribe image under cursor",
+			icon: "scan-text",
+			editorCallback: (editor: Editor, view: MarkdownView) => {
+				void this.runTranscriptionOnEmbed(editor, view);
+			},
 		});
 	}
 
@@ -64,6 +77,55 @@ export default class JournalTranscriberPlugin extends Plugin {
 		}
 	}
 
+	private async runTranscriptionOnEmbed(
+		editor: Editor,
+		view: MarkdownView,
+	): Promise<void> {
+		try {
+			const cursorLine = editor.getCursor().line;
+			const line = editor.getLine(cursorLine);
+			const linkpath = parseImageEmbed(line);
+			if (!linkpath) {
+				new Notice("Put the cursor on a line with an image embed.");
+				return;
+			}
+
+			const tfile = this.app.metadataCache.getFirstLinkpathDest(
+				linkpath,
+				view.file?.path ?? "",
+			);
+			if (!(tfile instanceof TFile)) {
+				new Notice("Couldn't find that image in the vault.");
+				return;
+			}
+
+			const notice = new Notice("Transcribing…", 0);
+			try {
+				const bytes = await this.app.vault.readBinary(tfile);
+				const image = await normalizeToJpeg(
+					new Blob([bytes]),
+					this.settings.maxImageEdge,
+				);
+				const provider = getProvider(this.settings);
+				const text = await provider.transcribe({
+					base64: image.base64,
+					mediaType: image.mediaType,
+					prompt: this.settings.transcriptionPrompt,
+				});
+				insertTranscriptionAfterLine(editor, cursorLine, text);
+				new Notice("Transcribed ✓");
+			} finally {
+				notice.hide();
+			}
+		} catch (e) {
+			console.error("Journal Transcriber:", e);
+			new Notice(
+				"Transcription failed: " +
+					(e instanceof Error ? e.message : String(e)),
+			);
+		}
+	}
+
 	async loadSettings() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 	}
@@ -71,4 +133,19 @@ export default class JournalTranscriberPlugin extends Plugin {
 	async saveSettings() {
 		await this.saveData(this.settings);
 	}
+}
+
+/**
+ * Extracts the image link target from a line containing an embed, supporting
+ * both wikilink (`![[image.png]]`, with optional `|alias` or `#anchor`) and
+ * Markdown (`![alt](path)`) syntax. Returns null if the line has no embed.
+ */
+function parseImageEmbed(line: string): string | null {
+	const wiki = line.match(/!\[\[([^\]|#]+)/);
+	if (wiki) return wiki[1].trim();
+
+	const md = line.match(/!\[[^\]]*\]\(([^)]+)\)/);
+	if (md) return decodeURIComponent(md[1].trim());
+
+	return null;
 }

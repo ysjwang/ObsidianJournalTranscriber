@@ -1,4 +1,4 @@
-import { App, Editor, normalizePath, TFolder } from "obsidian";
+import { App, Editor, EditorPosition, normalizePath, TFolder } from "obsidian";
 import { NormalizedImage } from "./image";
 import { TranscriberSettings } from "./settings";
 
@@ -53,4 +53,18 @@ export function insertTranscription(
 		`> ![[${imageName}]]\n\n` +
 		`${transcription.trim()}\n`;
 	editor.replaceSelection(block);
+}
+
+/**
+ * Inserts the transcribed Markdown on the line after the given line. Used when
+ * the source image is already embedded in the note, so we don't re-insert the
+ * image or wrap it in a callout.
+ */
+export function insertTranscriptionAfterLine(
+	editor: Editor,
+	line: number,
+	transcription: string,
+): void {
+	const at: EditorPosition = { line, ch: editor.getLine(line).length };
+	editor.replaceRange(`\n\n${transcription.trim()}\n`, at);
 }

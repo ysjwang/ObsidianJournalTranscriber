@@ -45,13 +45,14 @@ export function pickImage(): Promise<File | null> {
 }
 
 /**
- * Decodes any picked image (including iOS HEIC, via the WebView decoder),
+ * Decodes any image blob (including iOS HEIC, via the WebView decoder),
  * downscales it so the long edge is <= maxEdge, and re-encodes to JPEG.
  * This normalizes the format (Claude/Gemini don't accept HEIC) and keeps the
- * request small.
+ * request small. Accepts any Blob, so it works for both freshly picked Files
+ * and bytes read back from a vault attachment.
  */
 export async function normalizeToJpeg(
-	file: File,
+	file: Blob,
 	maxEdge: number,
 ): Promise<NormalizedImage> {
 	const dataUrl = await readAsDataUrl(file);
@@ -91,7 +92,7 @@ export async function normalizeToJpeg(
 	};
 }
 
-function readAsDataUrl(file: File): Promise<string> {
+function readAsDataUrl(file: Blob): Promise<string> {
 	return new Promise((resolve, reject) => {
 		const reader = new FileReader();
 		reader.onload = () => resolve(reader.result as string);

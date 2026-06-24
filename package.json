@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-journal-transcriber",
-	"version": "1.0.2",
+	"version": "1.0.3",
 	"description": "Transcribe handwritten notes from photos into Markdown using Claude or Gemini vision models.",
 	"main": "main.js",
 	"scripts": {
