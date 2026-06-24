@@ -1,0 +1,9 @@
+{
+	"id": "journal-transcriber",
+	"name": "Journal Transcriber",
+	"version": "1.0.0",
+	"minAppVersion": "1.5.0",
+	"description": "Transcribe handwritten notes from photos into Markdown using Claude or Gemini vision models. Works on mobile.",
+	"author": "Josiah",
+	"isDesktopOnly": false
+}
